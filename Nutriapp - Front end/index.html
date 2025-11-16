@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriApp | Tu guía de nutrición</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; }
+        .rounded-full-lg { border-radius: 1.5rem; }
+        .btn-primary {
+            background-color: #16a34a; color: white; padding: 1rem 2.5rem;
+            font-weight: 600; border-radius: 9999px;
+            box-shadow: 0 4px 14px 0 rgba(22, 163, 74, 0.4);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #15803d;
+            box-shadow: 0 6px 20px 0 rgba(22, 163, 74, 0.5);
+            transform: translateY(-2px);
+        }
+        .card {
+            background-color: white; border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .comments-list::-webkit-scrollbar { width: 8px; }
+        .comments-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .comments-list::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        .comments-list::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        #message-box {
+            position: fixed; top: -150px; left: 50%;
+            transform: translateX(-50%); padding: 1rem 1.5rem;
+            border-radius: 1rem; background-color: #22c55e;
+            color: white; font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: top 0.5s ease-in-out; z-index: 1000;
+        }
+        #message-box.error { background-color: #ef4444; }
+        #message-box.show { top: 2rem; }
+
+        /* Estilo para ocultar los campos de registro */
+        .register-field {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, margin 0.5s ease-out, opacity 0.3s ease-out;
+            margin-bottom: 0;
+            opacity: 0;
+        }
+
+        /* Clase que se añade con JS para mostrar los campos */
+        .register-mode .register-field {
+            max-height: 500px;
+            margin-bottom: 1rem;
+            opacity: 1;
+        }
+        .register-mode .register-field.grid {
+            margin-bottom: 0;
+        }
+
+        /* Estilos para la lista de requisitos de contraseña */
+        #password-requirements {
+            margin-top: 0.5rem;
+            margin-left: 1rem;
+            margin-bottom: 1rem;
+        }
+        #password-requirements li {
+            transition: color 0.3s ease;
+            color: #6b7280;
+        }
+        #password-requirements li::before {
+            content: '• ';
+            color: #6b7280;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        #password-requirements li.valid {
+            color: #16a34a;
+        }
+        #password-requirements li.valid::before {
+            content:  '✓ ' ;
+            color: #16a34a;
+        }
+        #password-requirements li.invalid {
+            color: #ef4444;
+        }
+        #password-requirements li.invalid::before {
+            content:  '✗ ' ;
+            color: #ef4444;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        /* Estilos para el calendario semanal */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .calendar-day {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            min-height: 100px;
+            background: white;
+        }
+        .calendar-day-header {
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .calendar-day.today {
+            background-color: #f0fdf4;
+            border-color: #16a34a;
+        }
+        .calendar-meal {
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            padding: 0.125rem 0.25rem;
+            background: #f8fafc;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="message-box">Mensaje de prueba</div>
+
+    <!-- Modal para añadir alimento al plan -->
+    <div id="add-to-plan-modal" class="modal">
+        <div class="modal-content card">
+            <h3 class="text-xl font-bold text-green-800 mb-4" id="modal-food-name">Añadir al Plan</h3>
+            <form id="add-to-plan-form">
+                <input type="hidden" id="modal-food-id">
+                <div class="mb-4">
+                    <label for="modal-quantity" class="block text-sm font-medium text-gray-600 mb-1">Cantidad (gramos)</label>
+                    <input type="number" id="modal-quantity" value="100" min="1" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="modal-meal-type" class="block text-sm font-medium text-gray-600 mb-1">Comida</label>
+                    <select id="modal-meal-type" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" required>
+                        <option value="Desayuno">Desayuno</option>
+                        <option value="Almuerzo">Almuerzo</option>
+                        <option value="Once/Cena">Once/Cena</option>
+                        <option value="Snacks">Snacks</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="modal-cancel" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-full font-semibold">Cancelar</button>
+                    <button type="submit" class="flex-1 btn-primary">Añadir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="welcome-page" class="min-h-screen flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 text-center">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-green-700 leading-tight">NutriAPP</h1>
+            <p class="mt-4 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">Transforma tu bienestar con planes de nutrición personalizados, seguimiento de alimentos y una comunidad que te apoya.</p>
+            <div class="mt-8 flex flex-col justify-center items-center space-y-4 w-full max-w-xs mx-auto">
+                <button id="get-started-btn" class="bg-white text-green-600 border-2 border-green-600 hover:bg-green-50 hover:text-green-700 hover:border-green-700 px-6 py-3 rounded-full font-semibold transition duration-300 w-full">Registrarse</button>
+                <button id="login-btn" class="btn-primary w-full">Iniciar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-register-page" class="hidden min-h-screen flex flex-col items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
+        <button id="back-to-welcome-btn" class="absolute top-6 left-6 text-gray-500 hover:text-gray-700 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver</button>
+        <div class="w-full max-w-md">
+            <div id="login-card" class="card p-8">
+                <h2 id="login-title" class="text-3xl font-bold text-green-800 mb-6 text-center">Acceso a NutriApp</h2>
+                <form id="login-form" class="overflow-hidden">
+
+                    <div class="register-field grid grid-cols-2 gap-4">
+                        <div class="mb-4">
+                            <label for="first-name-input" class="block text-sm font-medium text-gray-600 mb-1">Nombre*</label>
+                            <input id="first-name-input" type="text" placeholder="Ana" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div class="mb-4">
+                            <label for="last-name-input" class="block text-sm font-medium text-gray-600 mb-1">Apellido*</label>
+                            <input id="last-name-input" type="text" placeholder="Pérez" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                    <div class="register-field mb-4">
+                        <label for="nickname-input" class="block text-sm font-medium text-gray-600 mb-1">Nombre de Usuario*</label>
+                        <input id="nickname-input" type="text" placeholder="anaperez" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+
+                    <div class="mb-4">
+                        <label id="login-identifier-label" for="login-identifier-input" class="block text-sm font-medium text-gray-600 mb-1">Correo Electrónico</label>
+                        <input id="login-identifier-input" type="text" placeholder="tu@correo.com" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+                    <div class="mb-2"> <label for="password-input" class="block text-sm font-medium text-gray-600 mb-1">Contraseña</label>
+                        <input id="password-input" type="password" placeholder="••••••••" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+
+                    <div id="password-requirements" class="register-field text-xs text-gray-500">
+                        <ul class="list-none space-y-1">
+                            <li id="req-length">7 a 12 caracteres</li>
+                            <li id="req-lower">Una minúscula</li>
+                            <li id="req-upper">Una mayúscula</li>
+                            <li id="req-number">Un número</li>
+                            <li id="req-special">Un caracter especial (ej: !@#$%)</li>
+                        </ul>
+                    </div>
+                    <div class="register-field grid grid-cols-2 gap-4">
+                        <div class="mb-4">
+                            <label for="phone-input" class="block text-sm font-medium text-gray-600 mb-1">Teléfono (Opcional)</label>
+                            <input id="phone-input" type="tel" placeholder="+569..." class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div class="mb-4">
+                            <label for="gender-input" class="block text-sm font-medium text-gray-600 mb-1">Género (Opcional)</label>
+                            <select id="gender-input" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                                <option value="">Seleccionar...</option>
+                                <option value="femenino">Femenino</option>
+                                <option value="masculino">Masculino</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="login-submit-btn" type="submit" class="btn-primary w-full mt-2">Ingresar</button>
+                </form>
+
+                <p class="text-center text-sm mt-6 text-gray-500">
+                    <span id="toggle-text">¿No tienes cuenta?</span>
+                    <a href="#" id="toggle-link" class="font-medium text-green-600 hover:text-green-500">Regístrate</a>
+                </p>
+
+                <div class="text-center mt-4">
+                    <a href="#" id="forgot-password-link" class="text-sm text-gray-500 hover:text-green-600">¿Olvidaste tu contraseña?</a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-5xl mx-auto flex-1">
+            <header class="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <h2 id="main-title" class="text-3xl font-bold text-green-800">Tu Resumen Diario</h2>
+                <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+                    <button id="food-search-btn-header" class="text-green-700 hover:text-green-900 font-medium">Buscar</button>
+                    <button id="plans-btn-header" class="text-green-700 hover:text-green-900 font-medium">Planes</button>
+                    <button id="community-btn-header" class="text-green-700 hover:text-green-900 font-medium">Comunidad</button>
+                    
+                    <!-- Botón de perfil de usuario -->
+                    <div class="relative">
+                        <button id="user-profile-btn" class="flex items-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors">
+                            <img id="user-avatar" src="https://placehold.co/100x100/9ca3af/FFFFFF?text=Perfil" alt="Avatar" class="w-6 h-6 rounded-full object-cover">
+                            <span id="user-name">Usuario</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <!-- Menú desplegable del usuario -->
+                        <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
+                            <button id="edit-profile-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Editar Perfil</button>
+                            <button id="goals-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Mis Metas</button>
+                            <button id="logout-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Cerrar sesión</button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="mb-8 text-center">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">¿Qué quieres comer hoy?</h3>
+                <form id="main-page-search-form" class="relative w-full max-w-xl mx-auto">
+                    <input id="main-page-search-input" type="text" placeholder="Busca alimentos o platos chilenos..." class="w-full pl-12 pr-4 py-3 rounded-full-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-base shadow-sm">
+                    <button type="submit" class="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400 hover:text-green-600 transition-colors">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </button>
+                </form>
+            </div>
+
+            <main class="w-full">
+                <div id="daily-suggestions-container" class="space-y-8">
+                    <!-- Las sugerencias del día se generan aquí -->
+                </div>
+
+                <!-- NUEVA SECCIÓN: COMIDAS DEL DÍA Y ALIMENTO DESTACADO -->
+                <div class="mt-12">
+                    <h3 class="text-2xl font-bold text-green-800 mb-4">Tu Plan de Hoy</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div class="card p-4">
+                            <h4 class="text-lg font-semibold text-green-700 mb-2">Desayuno</h4>
+                            <ul id="today-breakfast" class="text-sm text-gray-600">
+                                <!-- Se cargarán los alimentos del desayuno -->
+                            </ul>
+                        </div>
+                        <div class="card p-4">
+                            <h4 class="text-lg font-semibold text-green-700 mb-2">Almuerzo</h4>
+                            <ul id="today-lunch" class="text-sm text-gray-600">
+                                <!-- Se cargarán los alimentos del almuerzo -->
+                            </ul>
+                        </div>
+                        <div class="card p-4">
+                            <h4 class="text-lg font-semibold text-green-700 mb-2">Cena</h4>
+                            <ul id="today-dinner" class="text-sm text-gray-600">
+                                <!-- Se cargarán los alimentos de la cena -->
+                            </ul>
+                        </div>
+                        <div class="card p-4">
+                            <h4 class="text-lg font-semibold text-green-700 mb-2">Snacks</h4>
+                            <ul id="today-snacks" class="text-sm text-gray-600">
+                                <!-- Se cargarán los snacks -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold text-green-700 mb-3">Alimento Destacado del Día</h3>
+                        <div id="food-of-the-day" class="flex items-start space-x-4">
+                            <img id="food-of-the-day-image" src="" alt="" class="w-24 h-24 object-cover rounded-lg">
+                            <div>
+                                <h4 id="food-of-the-day-name" class="text-lg font-bold text-gray-800"></h4>
+                                <p id="food-of-the-day-description" class="text-gray-600"></p>
+                                <p id="food-of-the-day-reason" class="text-sm text-green-700 mt-2"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Página de Edición de Perfil MEJORADA -->
+    <div id="user-profile-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-main self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Volver al Inicio
+        </button>
+        
+        <div class="max-w-2xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Editar Perfil</h2>
+            
+            <div class="card p-8">
+                <!-- Foto de perfil MEJORADA -->
+                <div class="text-center mb-6">
+                    <div class="relative inline-block">
+                        <img id="profile-picture-preview" src="https://placehold.co/100x100/9ca3af/FFFFFF?text=Perfil" 
+                             alt="Foto de perfil" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-green-200">
+                        <button id="change-photo-btn" class="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full shadow-lg hover:bg-green-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="file" id="profile-picture-input" accept="image/*" class="hidden">
+                    <div class="mt-3">
+                        <label for="profile-picture-url" class="block text-sm font-medium text-gray-600 mb-1">URL de la imagen de perfil</label>
+                        <input type="text" id="profile-picture-url" placeholder="https://ejemplo.com/imagen.jpg" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <p class="text-xs text-gray-500 mt-1">Pega la URL de tu imagen o sube una nueva</p>
+                    </div>
+                </div>
+
+                <form id="user-profile-form">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="profile-first-name" class="block text-sm font-medium text-gray-600 mb-1">Nombre*</label>
+                            <input id="profile-first-name" type="text" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                        </div>
+                        <div>
+                            <label for="profile-last-name" class="block text-sm font-medium text-gray-600 mb-1">Apellido*</label>
+                            <input id="profile-last-name" type="text" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="profile-email" class="block text-sm font-medium text-gray-600 mb-1">Correo Electrónico*</label>
+                        <input id="profile-email" type="email" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="profile-nickname" class="block text-sm font-medium text-gray-600 mb-1">Nombre de Usuario*</label>
+                        <input id="profile-nickname" type="text" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="profile-phone" class="block text-sm font-medium text-gray-600 mb-1">Teléfono</label>
+                            <input id="profile-phone" type="tel" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label for="profile-gender" class="block text-sm font-medium text-gray-600 mb-1">Género</label>
+                            <select id="profile-gender" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                                <option value="">Seleccionar...</option>
+                                <option value="femenino">Femenino</option>
+                                <option value="masculino">Masculino</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary w-full mt-4">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- NUEVA PÁGINA: MIS METAS CORREGIDA -->
+    <div id="goals-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-main self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Volver al Inicio
+        </button>
+        
+        <div class="max-w-2xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Mis Metas</h2>
+            
+            <div class="card p-8">
+                <form id="goals-form">
+                    <!-- NUEVOS CAMPOS PARA METAS -->
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold text-green-700 mb-3">Mis Metas</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="goals-current-weight" class="block text-sm font-medium text-gray-600 mb-1">Peso Actual (kg)</label>
+                                <input id="goals-current-weight" type="number" step="0.1" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label for="goals-goal-weight" class="block text-sm font-medium text-gray-600 mb-1">Peso Meta (kg)</label>
+                                <input id="goals-goal-weight" type="number" step="0.1" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="goals-height" class="block text-sm font-medium text-gray-600 mb-1">Altura (cm)</label>
+                                <input id="goals-height" type="number" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div>
+                                <label for="goals-activity-level" class="block text-sm font-medium text-gray-600 mb-1">Nivel de Actividad</label>
+                                <select id="goals-activity-level" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="sedentario">Sedentario</option>
+                                    <option value="ligero">Ligero</option>
+                                    <option value="moderado">Moderado</option>
+                                    <option value="activo">Activo</option>
+                                    <option value="muy_activo">Muy Activo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- NUEVO CAMPO: GÉNERO -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="goals-gender" class="block text-sm font-medium text-gray-600 mb-1">Género</label>
+                                <select id="goals-gender" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="femenino">Femenino</option>
+                                    <option value="masculino">Masculino</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="goals-age" class="block text-sm font-medium text-gray-600 mb-1">Edad (años)</label>
+                                <input id="goals-age" type="number" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" value="30">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="goals-daily-calorie-goal" class="block text-sm font-medium text-gray-600 mb-1">Meta Diaria de Calorías</label>
+                            <input id="goals-daily-calorie-goal" type="number" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <p class="text-xs text-gray-500 mt-1">Deja vacío para calcular automáticamente</p>
+                        </div>
+                        <button type="button" id="goals-calculate-calories-btn" class="bg-blue-600 text-white py-2 px-4 rounded-full text-sm font-semibold hover:bg-blue-700 transition-colors mb-4">
+                            Calcular Meta de Calorías
+                        </button>
+                    </div>
+
+                    <!-- HISTORIAL DE PESO -->
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <h3 class="text-lg font-semibold text-green-700 mb-3">Seguimiento de Peso</h3>
+                        <div class="mb-4">
+                            <label for="goals-current-weight-input" class="block text-sm font-medium text-gray-600 mb-1">Registrar Peso Actual</label>
+                            <div class="flex gap-2">
+                                <input id="goals-current-weight-input" type="number" step="0.1" placeholder="Ej: 70.5" class="flex-1 px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <button type="button" id="goals-save-weight-btn" class="bg-green-600 text-white py-3 px-6 rounded-full font-semibold hover:bg-green-700 transition-colors">
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="goals-weight-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary w-full mt-4">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resto del código permanece igual -->
+    <div id="food-search-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-main self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver</button>
+        <div class="max-w-2xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Buscar Alimentos</h2>
+            <div class="relative w-full">
+                <input id="food-search-input" type="text" placeholder="Ej: Pollo, Manzana, Cazuela..." class="w-full pl-12 pr-4 py-4 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-lg shadow-sm">
+                <div class="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+
+            <div id="search-results" class="mt-6 grid grid-cols-1 gap-4"></div>
+        </div>
+    </div>
+
+    <div id="plan-selection-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-main self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver</button>
+        <div class="max-w-2xl mx-auto w-full text-center">
+            <h2 class="text-3xl font-bold text-green-800 mb-4">Elige tu Plan</h2>
+            <p class="text-gray-600 mb-8">Selecciona una opción para comenzar a planificar tu nutrición.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="viability-check-card" class="card p-6 flex flex-col items-center cursor-pointer h-full">
+                    <svg class="w-12 h-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <h3 class="text-xl font-semibold text-green-700 mb-2">Verificar Viabilidad</h3>
+                    <p class="text-gray-600 text-center">Consulta si un alimento es bueno para tu objetivo (Bajar, Subir, Mantener).</p>
+                </div>
+                
+                <div id="create-plan-card" class="card p-6 flex flex-col items-center cursor-pointer h-full">
+                    <svg class="w-12 h-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <h3 class="text-xl font-semibold text-green-700 mb-2">Planes Personalizados</h3>
+                    <p class="text-gray-600 text-center">Crea tu propio plan de comidas o usa nuestras plantillas de objetivos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="viability-check-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-plans self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver a Planes</button>
+        <div class="max-w-2xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Verificar Viabilidad</h2>
+            <div class="card p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div class="sm:col-span-2">
+                        <label for="viability-search-input" class="block text-sm font-medium text-gray-600 mb-1">Alimento</label>
+                        <input id="viability-search-input" type="text" placeholder="Buscar alimento..." class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="goal-select" class="block text-sm font-medium text-gray-600 mb-1">Objetivo</label>
+                        <select id="goal-select" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                            <option value="weightLoss">Bajar de Peso</option>
+                            <option value="muscleGain">Ganar Músculo</option>
+                            <option value="maintenance">Mantención</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="viability-results-container" class="mt-6 space-y-3">
+                </div>
+        </div>
+    </div>
+
+    <div id="create-plan-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-plans self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver a Planes</button>
+        <div class="max-w-4xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Crear Plan Nutricional</h2>
+            
+            <div class="flex justify-center mb-6 border-b border-gray-200">
+                <button data-plan="pre-made" class="plan-tab-btn px-6 py-2 font-semibold text-green-700 border-b-2 border-green-700">Planes Básicos</button>
+                <button data-plan="custom" class="plan-tab-btn px-6 py-2 font-semibold text-gray-500">Plan Personalizado</button>
+            </div>
+
+            <div id="pre-made-plan-section">
+                <div class="flex justify-center gap-4 mb-6">
+                    <button data-premade="weightLoss" class="premade-plan-btn bg-green-600 text-white py-2 px-5 rounded-full font-semibold shadow-md">Bajar de Peso</button>
+                    <button data-premade="muscleGain" class="premade-plan-btn bg-white text-green-600 py-2 px-5 rounded-full font-semibold shadow-md">Ganar Músculo</button>
+                    <button data-premade="maintenance" class="premade-plan-btn bg-white text-green-600 py-2 px-5 rounded-full font-semibold shadow-md">Mantención</button>
+                </div>
+                <div id="pre-made-plan-display" class="card p-6">
+                    </div>
+            </div>
+
+            <div id="custom-plan-section" class="hidden">
+                <!-- CALENDARIO SEMANAL -->
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-green-700 mb-4">Calendario Semanal</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="prev-week" class="text-green-600 hover:text-green-800 font-semibold">← Semana Anterior</button>
+                        <span id="current-week" class="font-semibold text-gray-700">Semana Actual</span>
+                        <button id="next-week" class="text-green-600 hover:text-green-800 font-semibold">Semana Siguiente →</button>
+                    </div>
+                    <div id="weekly-calendar" class="calendar-grid">
+                        <!-- El calendario se generará aquí -->
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-green-700">Tu Plan de Hoy</h3>
+                    <button onclick="showPage('foodSearch')" class="btn-primary">
+                        🔍 Buscar Alimentos
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold text-green-700 mb-3">Desayuno</h3>
+                        <ul id="desayuno-list" class="space-y-2 mb-3 text-gray-700"></ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold text-green-700 mb-3">Almuerzo</h3>
+                        <ul id="almuerzo-list" class="space-y-2 mb-3 text-gray-700"></ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold text-green-700 mb-3">Once / Cena</h3>
+                        <ul id="once/cena-list" class="space-y-2 mb-3 text-gray-700"></ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold text-green-700 mb-3">Snacks</h3>
+                        <ul id="snacks-list" class="space-y-2 mb-3 text-gray-700"></ul>
+                    </div>
+                </div>
+
+                <!-- RESUMEN NUTRICIONAL -->
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-green-700 mb-4">Resumen Nutricional del Día</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-green-700" id="total-calories">0</div>
+                            <div class="text-sm text-gray-600">Calorías</div>
+                            <div class="text-xs text-gray-500" id="calories-progress">/ 0 kcal</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-700" id="total-protein">0</div>
+                            <div class="text-sm text-gray-600">Proteínas (g)</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-yellow-700" id="total-carbs">0</div>
+                            <div class="text-sm text-gray-600">Carbs (g)</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-red-700" id="total-fats">0</div>
+                            <div class="text-sm text-gray-600">Grasas (g)</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-gray-100 rounded-full h-4">
+                        <div id="calories-progress-bar" class="bg-green-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center mt-2 text-sm text-gray-600">
+                        <span id="calories-consumed">0</span> de <span id="calories-goal">0</span> kcal consumidas
+                    </div>
+                </div>
+
+                <!-- AÑADIR ALIMENTO MANUALMENTE -->
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold text-green-700 mb-3">Añadir Alimento Manualmente</h3>
+                    <form id="add-custom-food-form" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="custom-food-name" class="block text-sm font-medium text-gray-600 mb-1">Nombre del Alimento</label>
+                                <input type="text" id="custom-food-name" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                            </div>
+                            <div>
+                                <label for="custom-food-calories" class="block text-sm font-medium text-gray-600 mb-1">Calorías (por 100g)</label>
+                                <input type="number" id="custom-food-calories" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="custom-meal-type" class="block text-sm font-medium text-gray-600 mb-1">Comida</label>
+                                <select id="custom-meal-type" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" required>
+                                    <option value="Desayuno">Desayuno</option>
+                                    <option value="Almuerzo">Almuerzo</option>
+                                    <option value="Once/Cena">Once/Cena</option>
+                                    <option value="Snacks">Snacks</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="custom-food-quantity" class="block text-sm font-medium text-gray-600 mb-1">Cantidad (g)</label>
+                                <input type="number" id="custom-food-quantity" value="100" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="btn-primary w-full">Añadir</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="community-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button class="back-to-main self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Volver</button>
+        <div class="max-w-2xl mx-auto w-full">
+            <h2 class="text-3xl font-bold text-green-800 mb-6 text-center">Comunidad NutriApp</h2>
+
+            <form id="new-post-form" class="card p-6 mb-8 space-y-4">
+                <h3 class="text-xl font-semibold text-green-700">Crear Publicación</h3>
+                <input id="new-post-title" type="text" placeholder="Título de tu post" class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                <textarea id="new-post-content" placeholder="Escribe tu duda, receta o noticia..." class="w-full px-4 py-3 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" rows="3" required></textarea>
+                <div class="flex items-center gap-4">
+                    <label for="new-post-category" class="text-sm font-medium text-gray-600">Categoría:</label>
+                    <select id="new-post-category" class="flex-1 px-4 py-2 rounded-full-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" required>
+                        <option value="Dudas">Dudas</option>
+                        <option value="Recetas">Recetas</option>
+                        <option value="Rutinas">Rutinas</option>
+                        <option value="Noticias">Noticias</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary w-full" style="padding: 0.75rem 1.5rem;">Publicar</button>
+            </form>
+            
+            <div class="mb-4 flex flex-wrap gap-2">
+                <button onclick="renderCommunityPosts()" class="btn-filter-category bg-green-600 text-white py-1 px-3 rounded-full text-sm">Todos</button>
+                <button onclick="renderCommunityPosts('Recetas')" class="btn-filter-category bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-sm">Recetas</button>
+                <button onclick="renderCommunityPosts('Dudas')" class="btn-filter-category bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-sm">Dudas</button>
+                <button onclick="renderCommunityPosts('Rutinas')" class="btn-filter-category bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-sm">Rutinas</button>
+                <button onclick="renderCommunityPosts('Noticias')" class="btn-filter-category bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-sm">Noticias</button>
+            </div>
+
+            <div id="community-content" class="space-y-8">
+                </div>
+        </div>
+    </div>
+    
+    <div id="food-detail-page" class="hidden min-h-screen flex flex-col py-10 px-4 sm:px-6 lg:px-8">
+        <button onclick="goBackFromDetail()" class="self-start text-gray-500 hover:text-gray-700 mb-6 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            Volver
+        </button>
+        <div class="max-w-2xl mx-auto w-full">
+            <div id="food-detail-content" class="card p-6">
+                </div>
+            <!-- BOTÓN AÑADIR RÁPIDO -->
+            <div class="mt-6 text-center">
+                <button id="quick-add-to-plan" class="btn-primary text-lg py-4 px-8">
+                    ➕ Añadir a Mi Plan de Hoy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SCRIPT PRINCIPAL ---
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- CONFIGURACIÓN ---
+            const API_BASE_URL = '/api';
+
+            // --- REFERENCIAS A PÁGINAS ---
+            const pages = {
+                welcome: document.getElementById('welcome-page'),
+                loginRegister: document.getElementById('login-register-page'),
+                mainApp: document.getElementById('main-app-page'),
+                userProfile: document.getElementById('user-profile-page'),
+                goals: document.getElementById('goals-page'),
+                foodSearch: document.getElementById('food-search-page'),
+                planSelection: document.getElementById('plan-selection-page'),
+                viabilityCheck: document.getElementById('viability-check-page'),
+                createPlan: document.getElementById('create-plan-page'),
+                community: document.getElementById('community-page'),
+                foodDetail: document.getElementById('food-detail-page')
+            };
+
+            // --- REFERENCIAS AL FORMULARIO LOGIN/REGISTER ---
+            const loginCard = document.getElementById('login-card');
+            const loginForm = document.getElementById('login-form');
+            const loginTitle = document.getElementById('login-title');
+            const loginSubmitBtn = document.getElementById('login-submit-btn');
+            const toggleText = document.getElementById('toggle-text');
+            const toggleLink = document.getElementById('toggle-link');
+            const loginIdentifierLabel = document.getElementById('login-identifier-label');
+            const loginIdentifierInput = document.getElementById('login-identifier-input');
+            const passwordInput = document.getElementById('password-input');
+            const forgotPasswordLink = document.getElementById('forgot-password-link');
+            const firstNameInput = document.getElementById('first-name-input');
+            const lastNameInput = document.getElementById('last-name-input');
+            const nicknameInput = document.getElementById('nickname-input');
+            const phoneInput = document.getElementById('phone-input');
+            const genderInput = document.getElementById('gender-input');
+            const passwordReqs = {
+                length: document.getElementById('req-length'),
+                lower: document.getElementById('req-lower'),
+                upper: document.getElementById('req-upper'),
+                number: document.getElementById('req-number'),
+                special: document.getElementById('req-special'),
+            };
+
+            // --- Referencias a Perfil de Usuario ---
+            const userProfileBtn = document.getElementById('user-profile-btn');
+            const userDropdown = document.getElementById('user-dropdown');
+            const editProfileBtn = document.getElementById('edit-profile-btn');
+            const goalsBtn = document.getElementById('goals-btn');
+            const userProfileForm = document.getElementById('user-profile-form');
+            const profilePictureInput = document.getElementById('profile-picture-input');
+            const profilePictureUrl = document.getElementById('profile-picture-url');
+            const changePhotoBtn = document.getElementById('change-photo-btn');
+            const profilePicturePreview = document.getElementById('profile-picture-preview');
+
+            // --- Referencias a Metas ---
+            const goalsForm = document.getElementById('goals-form');
+
+            // --- Referencias a Búsqueda ---
+            const foodSearchInput = document.getElementById('food-search-input');
+            const searchResults = document.getElementById('search-results');
+            const mainPageSearchForm = document.getElementById('main-page-search-form');
+            const mainPageSearchInput = document.getElementById('main-page-search-input');
+
+            // --- Referencias a Viabilidad ---
+            const viabilitySearchInput = document.getElementById('viability-search-input');
+            const goalSelect = document.getElementById('goal-select');
+            const viabilityResultsContainer = document.getElementById('viability-results-container');
+
+            // --- Referencias a Planes ---
+            const planTabBtns = document.querySelectorAll('.plan-tab-btn');
+            const preMadePlanSection = document.getElementById('pre-made-plan-section');
+            const customPlanSection = document.getElementById('custom-plan-section');
+            const premadePlanBtns = document.querySelectorAll('.premade-plan-btn');
+            const preMadePlanDisplay = document.getElementById('pre-made-plan-display');
+            const addCustomFoodForms = document.querySelectorAll('.add-custom-food-form');
+
+            // --- Referencias a Comunidad ---
+            const communityContent = document.getElementById('community-content');
+            const newPostForm = document.getElementById('new-post-form');
+
+            // --- Referencias a Modal ---
+            const modal = document.getElementById('add-to-plan-modal');
+            const modalCancel = document.getElementById('modal-cancel');
+            const addToPlanForm = document.getElementById('add-to-plan-form');
+
+            // --- Variables globales ---
+            let isRegisterMode = false;
+            let messageTimeout;
+            let detailOriginPage = 'foodSearch';
+            let currentFoodDetail = null;
+            let currentWeekOffset = 0; // Para el calendario semanal
+
+            // --- MANEJO DE TOKEN Y API ---
+            const getToken = () => localStorage.getItem('token');
+            
+            const getUserFromToken = () => {
+                const token = getToken();
+                if (!token) return null;
+                try {
+                    return JSON.parse(atob(token.split('.')[1]));
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const fetchPublic = async (url, options = {}) => {
+                const defaultHeaders = { 'Content-Type': 'application/json' };
+                const response = await fetch(url, { ...options, headers: { ...defaultHeaders, ...options.headers } });
+                return response;
+            };
+
+            const fetchProtected = async (url, options = {}) => {
+                const token = getToken();
+                const defaultHeaders = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                };
+                const response = await fetch(url, { ...options, headers: { ...defaultHeaders, ...options.headers } });
+                
+                if (response.status === 401) {
+                    showMessage('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.', true);
+                    logout();
+                    throw new Error('Sesión expirada');
+                }
+                return response;
+            };
+
+            // --- MANEJO DE UI (PÁGINAS Y MENSAJES) ---
+            const showPage = (pageName) => {
+                Object.values(pages).forEach(page => page.classList.add('hidden'));
+                if (pages[pageName]) {
+                    pages[pageName].classList.remove('hidden');
+
+                    // Acciones específicas al mostrar una página
+                    if (pageName === 'mainApp') {
+                        const user = getUserFromToken();
+                        document.getElementById('main-title').textContent = `Hola, ${user.nickname}`;
+                        document.getElementById('user-name').textContent = user.nickname; // AÑADIDO: Actualizar el header también
+                        generateDailySuggestions();
+                        loadUserProfile(); // Cargar perfil del usuario
+                        loadDailyMeals(); // Cargar comidas del día
+                        loadFoodOfTheDay(); // Cargar alimento del día
+                    }
+                    if (pageName === 'community') {
+                        renderCommunityPosts();
+                    }
+                    if (pageName === 'createPlan') {
+                        loadCustomPlan();
+                        loadWeeklyCalendar(); // Cargar calendario semanal
+                    }
+                    if (pageName === 'userProfile') {
+                        loadUserProfile();
+                    }
+                    if (pageName === 'goals') {
+                        loadGoals();
+                        loadWeightHistory();
+                    }
+                } else {
+                    console.error(`La página "${pageName}" no existe.`);
+                }
+            };
+
+            const showMessage = (message, isError = false) => {
+                const messageBox = document.getElementById('message-box');
+                messageBox.textContent = message;
+                messageBox.classList.toggle('error', isError);
+                messageBox.classList.add('show');
+                
+                clearTimeout(messageTimeout);
+                messageTimeout = setTimeout(() => {
+                    messageBox.classList.remove('show');
+                }, 3000);
+            };
+            
+            // --- VALIDACIÓN DE CONTRASEÑA ---
+            const checkPasswordRequirements = (password) => {
+                const checks = {
+                    length: password.length >= 7 && password.length <= 12,
+                    lower: /[a-z]/.test(password),
+                    upper: /[A-Z]/.test(password),
+                    number: /\d/.test(password),
+                    special: /[!@#$%&]/.test(password)
+                };
+
+                passwordReqs.length.className = checks.length ? 'valid' : 'invalid';
+                passwordReqs.lower.className = checks.lower ? 'valid' : 'invalid';
+                passwordReqs.upper.className = checks.upper ? 'valid' : 'invalid';
+                passwordReqs.number.className = checks.number ? 'valid' : 'invalid';
+                passwordReqs.special.className = checks.special ? 'valid' : 'invalid';
+
+                return Object.values(checks).every(Boolean);
+            };
+
+            // --- PERFIL DE USUARIO MEJORADO ---
+            const loadUserProfile = async () => {
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/user/profile`);
+                    const user = await response.json();
+                    
+                    // Cargar datos en el formulario de perfil
+                    document.getElementById('profile-first-name').value = user.first_name || '';
+                    document.getElementById('profile-last-name').value = user.last_name || '';
+                    document.getElementById('profile-email').value = user.email || '';
+                    document.getElementById('profile-nickname').value = user.nickname || ''; // AÑADIDO: Cargar nickname
+                    document.getElementById('profile-phone').value = user.phone || '';
+                    document.getElementById('profile-gender').value = user.gender || '';
+                    
+                    // Cargar imagen de perfil
+                    if (user.profile_image_url) {
+                        profilePicturePreview.src = user.profile_image_url;
+                        profilePictureUrl.value = user.profile_image_url;
+                        document.getElementById('user-avatar').src = user.profile_image_url;
+                    }
+                    
+                    // Actualizar header con el nickname
+                    document.getElementById('user-name').textContent = user.nickname || 'Usuario';
+                    
+                } catch (err) {
+                    showMessage('Error al cargar perfil', true);
+                }
+            };
+
+            // --- FUNCIONALIDAD MEJORADA PARA FOTOS DE PERFIL ---
+            changePhotoBtn.addEventListener('click', () => {
+                profilePictureInput.click();
+            });
+
+            profilePictureInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validar tipo de archivo
+                    if (!file.type.startsWith('image/')) {
+                        showMessage('Por favor selecciona un archivo de imagen válido', true);
+                        return;
+                    }
+                    
+                    // Validar tamaño (máximo 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        showMessage('La imagen debe ser menor a 5MB', true);
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        profilePicturePreview.src = e.target.result;
+                        // En lugar de guardar como base64, podrías subir la imagen a un servidor
+                        // Por ahora, usamos base64 para demostración
+                        profilePictureUrl.value = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            profilePictureUrl.addEventListener('input', (e) => {
+                if (e.target.value) {
+                    profilePicturePreview.src = e.target.value;
+                }
+            });
+
+            // --- METAS DEL USUARIO ---
+            const loadGoals = async () => {
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/user/profile`);
+                    const user = await response.json();
+                    
+                    document.getElementById('goals-current-weight').value = user.current_weight || '';
+                    document.getElementById('goals-goal-weight').value = user.goal_weight || '';
+                    document.getElementById('goals-height').value = user.height || '';
+                    document.getElementById('goals-activity-level').value = user.activity_level || '';
+                    document.getElementById('goals-daily-calorie-goal').value = user.daily_calorie_goal || '';
+                    document.getElementById('goals-gender').value = user.gender || '';
+                    
+                } catch (err) {
+                    showMessage('Error al cargar metas', true);
+                }
+            };
+
+            // Event Listeners para el perfil
+            userProfileBtn.addEventListener('click', () => {
+                userDropdown.classList.toggle('hidden');
+            });
+
+            editProfileBtn.addEventListener('click', () => {
+                loadUserProfile();
+                showPage('userProfile');
+                userDropdown.classList.add('hidden');
+            });
+
+            goalsBtn.addEventListener('click', () => {
+                loadGoals();
+                showPage('goals');
+                userDropdown.classList.add('hidden');
+            });
+
+            // Cerrar dropdown al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!userProfileBtn.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+
+            // Guardar perfil de usuario MEJORADO - CORREGIDO
+            userProfileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const profileData = {
+                    first_name: document.getElementById('profile-first-name').value,
+                    last_name: document.getElementById('profile-last-name').value,
+                    email: document.getElementById('profile-email').value,
+                    nickname: document.getElementById('profile-nickname').value, // AÑADIDO: Incluir nickname
+                    phone: document.getElementById('profile-phone').value || null,
+                    gender: document.getElementById('profile-gender').value || null,
+                    profile_image_url: profilePictureUrl.value || null
+                };
+                
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/user/profile`, {
+                        method: 'PUT',
+                        body: JSON.stringify(profileData)
+                    });
+                    
+                    if (!response.ok) throw new Error('Error al actualizar perfil');
+                    
+                    const updatedUser = await response.json();
+                    showMessage('Perfil actualizado correctamente');
+                    
+                    // Actualizar header con el nickname
+                    document.getElementById('user-name').textContent = updatedUser.nickname;
+                    if (updatedUser.profile_image_url) {
+                        document.getElementById('user-avatar').src = updatedUser.profile_image_url;
+                    }
+                    
+                    showPage('mainApp');
+                } catch (err) {
+                    showMessage('Error al actualizar perfil: ' + err.message, true);
+                }
+            });
+
+            // Guardar metas del usuario
+            goalsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const goalsData = {
+                    current_weight: document.getElementById('goals-current-weight').value || null,
+                    goal_weight: document.getElementById('goals-goal-weight').value || null,
+                    height: document.getElementById('goals-height').value || null,
+                    activity_level: document.getElementById('goals-activity-level').value || null,
+                    daily_calorie_goal: document.getElementById('goals-daily-calorie-goal').value || null
+                };
+                
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/user/profile`, {
+                        method: 'PUT',
+                        body: JSON.stringify(goalsData)
+                    });
+                    
+                    if (!response.ok) throw new Error('Error al actualizar metas');
+                    
+                    showMessage('Metas actualizadas correctamente');
+                    showPage('mainApp');
+                } catch (err) {
+                    showMessage('Error al actualizar metas: ' + err.message, true);
+                }
+            });
+
+            // --- LOGIN / REGISTER ---
+            const setFormMode = (isRegister) => {
+                isRegisterMode = isRegister;
+                loginCard.classList.toggle('register-mode', isRegister);
+                loginTitle.textContent = isRegister ? 'Crea tu Cuenta' : 'Acceso a NutriApp';
+                loginSubmitBtn.textContent = isRegister ? 'Registrarse' : 'Ingresar';
+                toggleText.textContent = isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?';
+                toggleLink.textContent = isRegister ? 'Inicia Sesión' : 'Regístrate';
+                loginIdentifierLabel.textContent = isRegister ? 'Correo Electrónico*' : 'Correo Electrónico';
+                forgotPasswordLink.style.display = isRegister ? 'none' : 'block';
+                loginForm.reset();
+                checkPasswordRequirements('');
+            };
+
+            passwordInput.addEventListener('input', () => {
+                if (isRegisterMode) {
+                    checkPasswordRequirements(passwordInput.value);
+                }
+            });
+
+            // --- NAVEGACIÓN INICIAL Y BOTONES ---
+            document.getElementById('get-started-btn').addEventListener('click', () => {
+                setFormMode(true);
+                showPage('loginRegister');
+            });
+            document.getElementById('login-btn').addEventListener('click', () => {
+                setFormMode(false);
+                showPage('loginRegister');
+            });
+            document.getElementById('back-to-welcome-btn').addEventListener('click', () => showPage('welcome'));
+
+            toggleLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                setFormMode(!isRegisterMode);
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                logout();
+            });
+
+            const logout = () => {
+                localStorage.removeItem('token');
+                showPage('welcome');
+            };
+
+            // --- NAVEGACIÓN PRINCIPAL ---
+            document.querySelectorAll('.back-to-main').forEach(btn => {
+                btn.addEventListener('click', () => showPage('mainApp'));
+            });
+            document.querySelectorAll('.back-to-plans').forEach(btn => {
+                btn.addEventListener('click', () => showPage('planSelection'));
+            });
+            
+            document.getElementById('food-search-btn-header').addEventListener('click', () => {
+                showPage('foodSearch');
+                foodSearchInput.focus();
+            });
+            document.getElementById('plans-btn-header').addEventListener('click', () => showPage('planSelection'));
+            document.getElementById('community-btn-header').addEventListener('click', () => showPage('community'));
+
+            document.getElementById('viability-check-card').addEventListener('click', () => showPage('viabilityCheck'));
+            document.getElementById('create-plan-card').addEventListener('click', () => showPage('createPlan'));
+
+            // --- MAIN APP PAGE - NUEVAS FUNCIONALIDADES ---
+            const generateDailySuggestions = async () => {
+                const suggestionsContainer = document.getElementById('daily-suggestions-container');
+                suggestionsContainer.innerHTML = '<p class="text-gray-500">Cargando sugerencias...</p>';
+                try {
+                    const response = await fetchPublic(`${API_BASE_URL}/suggestions/seasonal`);
+                    if (!response.ok) throw new Error('No se pudieron cargar las sugerencias');
+                    
+                    const foods = await response.json();
+
+                    if (foods.length === 0) {
+                        suggestionsContainer.innerHTML = '<p class="text-red-500">No se encontraron sugerencias.</p>';
+                        return;
+                    }
+
+                    suggestionsContainer.innerHTML = `
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">Sugerencias del Día</h3>
+                    `;
+
+                    foods.forEach(food => {
+                        suggestionsContainer.innerHTML += `
+                            <div class="card p-6 cursor-pointer" onclick="showFoodDetail(${food.food_id}, 'mainApp')">
+                                <h4 class="text-xl font-bold text-green-700 mb-2">${food.name}</h4>
+                                <p class="text-gray-600 mb-4">${food.description ? food.description.substring(0, 100) + '...' : 'Sin descripción.'}</p>
+                                <img src="${food.image_url || 'https://placehold.co/600x400/9ca3af/FFFFFF?text=Imagen+No+Disponible'}" alt="${food.name}" class="w-full h-48 object-cover rounded-lg shadow-md">
+                            </div>
+                        `;
+                    });
+
+                } catch (err) {
+                    console.error(err);
+                    suggestionsContainer.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+                }
+            };
+
+            // NUEVA FUNCIÓN: Cargar comidas del día
+            const loadDailyMeals = async () => {
+                try {
+                    // Obtener el plan del día actual
+                    const response = await fetchProtected(`${API_BASE_URL}/plans/custom`);
+                    const items = await response.json();
+
+                    const meals = {
+                        'Desayuno': document.getElementById('today-breakfast'),
+                        'Almuerzo': document.getElementById('today-lunch'),
+                        'Once/Cena': document.getElementById('today-dinner'),
+                        'Snacks': document.getElementById('today-snacks')
+                    };
+
+                    // Limpiar listas
+                    Object.values(meals).forEach(list => {
+                        if (list) list.innerHTML = '';
+                    });
+
+                    // Agrupar items por tipo de comida
+                    items.forEach(item => {
+                        const list = meals[item.meal_type];
+                        if (list) {
+                            const li = document.createElement('li');
+                            li.className = 'mb-1';
+                            li.textContent = item.custom_food_name || item.food_name || 'Alimento personalizado';
+                            list.appendChild(li);
+                        }
+                    });
+
+                    // Si no hay items, mostrar mensaje
+                    Object.entries(meals).forEach(([mealType, list]) => {
+                        if (list && list.children.length === 0) {
+                            const li = document.createElement('li');
+                            li.className = 'text-gray-400 italic';
+                            li.textContent = 'No hay alimentos registrados';
+                            list.appendChild(li);
+                        }
+                    });
+
+                } catch (err) {
+                    console.error('Error al cargar comidas del día:', err);
+                }
+            };
+
+            // NUEVA FUNCIÓN: Cargar alimento del día - CORREGIDO
+            const loadFoodOfTheDay = async () => {
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/food-of-the-day`);
+                    const data = await response.json();
+
+                    // CORRECCIÓN: Usar el ID correcto 'food-of-the-day-image'
+                    document.getElementById('food-of-the-day-image').src = data.food.image_url || 'https://imagenes2.eltiempo.com/files/image_1200_535/uploads/2023/05/09/645a9c00e1f42.jpeg';
+                    document.getElementById('food-of-the-day-name').textContent = data.food.name;
+                    document.getElementById('food-of-the-day-description').textContent = data.food.description || '';
+                    document.getElementById('food-of-the-day-reason').textContent = data.reason;
+                } catch (err) {
+                    console.error('Error al cargar alimento del día:', err);
+                    // Fallback en caso de error
+                    document.getElementById('food-of-the-day-image').src = 'https://imagenes2.eltiempo.com/files/image_1200_535/uploads/2023/05/09/645a9c00e1f42.jpeg';
+                    document.getElementById('food-of-the-day-name').textContent = 'Acelga';
+                    document.getElementById('food-of-the-day-description').textContent = 'Verdura de hoja verde rica en vitaminas y minerales.';
+                    document.getElementById('food-of-the-day-reason').textContent = 'Excelente para la salud digestiva y rica en antioxidantes.';
+                }
+            };
+            
+            // --- FORMULARIO DE LOGIN / REGISTRO ---
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const data = {
+                    password: passwordInput.value
+                };
+
+                let url;
+                let errorMessage;
+
+                if (isRegisterMode) {
+                    url = `${API_BASE_URL}/register`;
+                    errorMessage = 'Error al registrarse:';
+
+                    if (!checkPasswordRequirements(data.password)) {
+                        showMessage('Por favor, cumple todos los requisitos de la contraseña.', true);
+                        return;
+                    }
+
+                    data.email = loginIdentifierInput.value;
+                    data.nickname = nicknameInput.value;
+                    data.first_name = firstNameInput.value;
+                    data.last_name = lastNameInput.value;
+                    data.phone = phoneInput.value || null;
+                    data.gender = genderInput.value || null;
+
+                } else {
+                    url = `${API_BASE_URL}/login`;
+                    errorMessage = 'Error al iniciar sesión:';
+                    data.loginIdentifier = loginIdentifierInput.value;
+                }
+
+                try {
+                    const response = await fetchPublic(url, {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Ocurrió un error');
+                    }
+
+                    if (isRegisterMode) {
+                        showMessage('¡Cuenta creada! Por favor, inicia sesión.');
+                        setFormMode(false);
+                    } else {
+                        localStorage.setItem('token', result.token);
+                        showMessage(result.message || '¡Inicio de sesión exitoso!');
+                        showPage('mainApp');
+                    }
+
+                } catch (err) {
+                    showMessage(`${errorMessage} ${err.message}`, true);
+                }
+            });
+            
+            // --- FUNCIONES DE BÚSQUEDA ---
+            const handleFoodSearch = async (query) => {
+                if (query.length < 2) {
+                    searchResults.innerHTML = '';
+                    return;
+                }
+
+                try {
+                    const response = await fetchPublic(`${API_BASE_URL}/search?q=${query}`);
+                    if (!response.ok) throw new Error('Error en la búsqueda');
+                    
+                    const foods = await response.json();
+                    
+                    searchResults.innerHTML = '';
+                    if (foods.length > 0) {
+                        foods.forEach(food => {
+                            const card = document.createElement('div');
+                            card.className = 'card p-4 flex justify-between items-center cursor-pointer';
+                            card.setAttribute('onclick', `showFoodDetail(${food.food_id}, 'foodSearch')`); 
+                            
+                            card.innerHTML = `
+                                <div class="flex items-center space-x-4">
+                                    <img src="${food.image_url || 'https://placehold.co/100x100/9ca3af/FFFFFF?text=Imagen'}" alt="${food.name}" class="w-12 h-12 rounded-full object-cover">
+                                    <div>
+                                        <h4 class="font-semibold text-lg text-green-700">${food.name}</h4>
+                                        <span class="text-sm text-gray-500">${food.category}</span>
+                                    </div>
+                                </div>
+                                <button class="bg-green-500 text-white p-2 rounded-full hover:bg-green-600" onclick="event.stopPropagation(); showAddToPlanModal(${food.food_id}, '${food.name}')">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                            `;
+                            searchResults.appendChild(card);
+                        });
+                    } else {
+                        searchResults.innerHTML = '<p class="text-center text-gray-500">No se encontraron alimentos.</p>';
+                    }
+                } catch (err) {
+                    searchResults.innerHTML = `<p class="text-center text-red-500">Error al buscar: ${err.message}</p>`;
+                }
+            };
+
+            foodSearchInput.addEventListener('input', (e) => {
+                handleFoodSearch(e.target.value);
+            });
+
+            mainPageSearchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const query = mainPageSearchInput.value;
+                if(query) {
+                    showPage('foodSearch');
+                    foodSearchInput.value = query;
+                    handleFoodSearch(query);
+                }
+            });
+
+            // --- FUNCIONES DE DETALLE DE ALIMENTO ---
+            async function showFoodDetail(foodId, origin = 'foodSearch') {
+                console.log(`Buscando detalles para el food_id: ${foodId} (origen: ${origin})`);
+                
+                detailOriginPage = origin; 
+                
+                try {
+                    const response = await fetchPublic(`${API_BASE_URL}/foods/${foodId}`);
+                    if (!response.ok) {
+                        throw new Error('Error al obtener la comida desde la API');
+                    }
+                    const food = await response.json();
+                    currentFoodDetail = food;
+                    
+                    const detailContent = document.getElementById('food-detail-content');
+                    detailContent.innerHTML = '';
+
+                    // Imagen
+                    detailContent.innerHTML += `
+                        <img src="${food.image_url || 'https://placehold.co/600x400/9ca3af/FFFFFF?text=Imagen+No+Disponible'}" alt="${food.name}" class="w-full h-64 object-cover rounded-lg mb-4 shadow-md">
+                    `;
+                    
+                    // Título, Categoría y Badges
+                    let titleHtml = `<h2 class="text-3xl font-bold mb-2">${food.name}</h2>`;
+                    if (food.category) {
+                        titleHtml += `<span class="bg-green-100 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">${food.category}</span>`;
+                    }
+                    if (food.is_seasonal) {
+                        titleHtml += `<span class="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">De Temporada</span>`;
+                    }
+                    detailContent.innerHTML += `<div class="mb-4">${titleHtml}</div>`;
+
+                    // Descripción
+                    if (food.description) {
+                        detailContent.innerHTML += `<p class="text-gray-700 text-base mb-6">${food.description}</p>`;
+                    }
+
+                    // Tabla de Nutrición
+                    let nutritionHtml = `
+                        <h3 class="text-xl font-semibold mb-3">Información Nutricional (por 100g)</h3>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr><td class="px-4 py-3 font-medium">Calorías</td><td class="px-4 py-3 text-right">${food.kcal || 'N/A'} kcal</td></tr>
+                                    <tr><td class="px-4 py-3 font-medium">Proteínas</td><td class="px-4 py-3 text-right">${food.protein || 'N/A'} g</td></tr>
+                                    <tr><td class="px-4 py-3 font-medium">Carbohidratos</td><td class="px-4 py-3 text-right">${food.carbs || 'N/A'} g</td></tr>
+                                    <tr><td class="px-4 py-3 font-medium">Grasas</td><td class="px-4 py-3 text-right">${food.fats || 'N/A'} g</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    detailContent.innerHTML += nutritionHtml;
+
+                    // Preparación (NUEVO)
+                    if (food.preparation) {
+                        detailContent.innerHTML += `
+                            <div class="mt-8">
+                                <h3 class="text-xl font-semibold text-green-800 mb-4">Preparación</h3>
+                                <div class="bg-green-50 rounded-lg p-6 border border-green-200">
+                                    <p class="text-gray-700 whitespace-pre-line">${food.preparation}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    showPage('foodDetail');
+
+                } catch (err) {
+                    console.error(err);
+                    showMessage('No se pudo cargar el detalle del alimento.', true);
+                    if (detailOriginPage === 'mainApp') {
+                        showPage('mainApp');
+                    } else {
+                        showPage('foodSearch');
+                    }
+                }
+            }
+
+            function goBackFromDetail() {
+                if (detailOriginPage === 'mainApp') {
+                    showPage('mainApp');
+                } else {
+                    showPage('foodSearch');
+                }
+            }
+            
+            // --- FUNCIONES DE PLANES ---
+            const handleViabilitySearch = async () => {
+                const query = viabilitySearchInput.value.toLowerCase();
+                const goal = goalSelect.value;
+                viabilityResultsContainer.innerHTML = '';
+
+                if (query.length > 0) {
+                    try {
+                        const response = await fetchPublic(`${API_BASE_URL}/viability?goal=${goal}&q=${query}`);
+                        const filteredFoods = await response.json();
+                        
+                        if(filteredFoods.length > 0) {
+                            filteredFoods.forEach(food => {
+                                const viability = food.viability;
+                                const viabilityInfo = {
+                                    'muy_bueno': { label: 'Muy Bueno', color: 'bg-green-700', width: 'w-full' },
+                                    'bueno': { label: 'Bueno', color: 'bg-green-500', width: 'w-4/5' },
+                                    'normal': { label: 'Normal', color: 'bg-yellow-500', width: 'w-3/5' },
+                                    'malo': { label: 'Malo', color: 'bg-orange-500', width: 'w-2/5' },
+                                    'muy_malo': { label: 'Muy Malo', color: 'bg-red-700', width: 'w-1/5' }
+                                };
+
+                                const info = viabilityInfo[viability] || viabilityInfo['normal'];
+                                
+                                const card = document.createElement('div');
+                                card.classList.add('card', 'p-4');
+                                card.innerHTML = `
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-semibold text-lg">${food.name}</span>
+                                        <span class="text-sm font-medium px-2 py-0.5 rounded-full text-white ${info.color}">${info.label}</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="${info.color} h-2.5 rounded-full ${info.width}"></div>
+                                    </div>
+                                `;
+                                viabilityResultsContainer.appendChild(card);
+                            });
+                        } else {
+                            viabilityResultsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron alimentos con ese nombre o viabilidad definida.</p>';
+                        }
+                    } catch (err) {
+                        viabilityResultsContainer.innerHTML = `<p class="text-center text-red-500">Error al buscar: ${err.message}</p>`;
+                    }
+                }
+            };
+            
+            viabilitySearchInput.addEventListener('input', handleViabilitySearch);
+            goalSelect.addEventListener('change', handleViabilitySearch);
+
+            // Planes Pre-hechos
+            const loadPreMadePlan = async (type) => {
+                preMadePlanDisplay.innerHTML = '<p class="text-gray-500">Cargando plan...</p>';
+                try {
+                    const response = await fetchPublic(`${API_BASE_URL}/plans/premade/${type}`);
+                    if (!response.ok) throw new Error('No se pudo cargar el plan');
+                    
+                    const plan = await response.json();
+                    
+                    let itemsHtml = '<div class="space-y-4">';
+                    const meals = ['Desayuno', 'Almuerzo', 'Cena', 'Snack'];
+                    meals.forEach(meal => {
+                        const mealItems = plan.items.filter(item => item.meal_type === meal);
+                        if (mealItems.length > 0) {
+                            itemsHtml += `
+                                <div>
+                                    <h4 class="font-semibold text-green-700 text-lg">${meal}</h4>
+                                    <ul class="list-disc list-inside ml-4 text-gray-700">
+                                        ${mealItems.map(item => `<li>${item.food_description}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+                    });
+                    itemsHtml += '</div>';
+
+                    preMadePlanDisplay.innerHTML = `
+                        <h3 class="text-2xl font-bold text-green-800 mb-2">${plan.name}</h3>
+                        <p class="text-gray-600 mb-4">Plan diseñado para ${type === 'weightLoss' ? 'bajar de peso' : type === 'muscleGain' ? 'ganar músculo' : 'mantención'}.</p>
+                        ${itemsHtml}
+                    `;
+                } catch (err) {
+                    preMadePlanDisplay.innerHTML = `<p class="text-red-500">${err.message}</p>`;
+                }
+            };
+
+            planTabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetPlan = btn.dataset.plan;
+                    
+                    planTabBtns.forEach(b => {
+                        b.classList.remove('text-green-700', 'border-green-700');
+                        b.classList.add('text-gray-500');
+                    });
+                    btn.classList.add('text-green-700', 'border-green-700');
+                    btn.classList.remove('text-gray-500');
+                    
+                    if (targetPlan === 'pre-made') {
+                        preMadePlanSection.classList.remove('hidden');
+                        customPlanSection.classList.add('hidden');
+                    } else {
+                        preMadePlanSection.classList.add('hidden');
+                        customPlanSection.classList.remove('hidden');
+                    }
+                });
+            });
+
+            premadePlanBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    premadePlanBtns.forEach(b => {
+                        b.classList.remove('bg-green-600', 'text-white');
+                        b.classList.add('bg-white', 'text-green-600');
+                    });
+                    btn.classList.add('bg-green-600', 'text-white');
+                    btn.classList.remove('bg-white', 'text-green-600');
+                    
+                    loadPreMadePlan(btn.dataset.premade);
+                });
+            });
+            
+            if (premadePlanBtns.length > 0) {
+                loadPreMadePlan(premadePlanBtns[0].dataset.premade);
+            }
+
+            // --- PLAN PERSONALIZADO ACTUALIZADO ---
+            const loadCustomPlan = async () => {
+                document.querySelectorAll('#custom-plan-section ul').forEach(ul => ul.innerHTML = '');
+                
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/plans/custom`);
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    
+                    const items = await response.json();
+                    
+                    let totalCalories = 0;
+                    let totalProtein = 0;
+                    let totalCarbs = 0;
+                    let totalFats = 0;
+
+                    items.forEach(item => {
+                        const listId = `${item.meal_type.toLowerCase()}-list`;
+                        const list = document.getElementById(listId);
+                        if (list) {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center py-2 border-b border-gray-100';
+                            
+                            const foodName = item.food_name || item.custom_food_name || 'Alimento personalizado';
+                            const calories = item.calories || 0;
+                            const quantity = item.quantity || 100;
+                            
+                            li.innerHTML = `
+                                <div>
+                                    <span class="font-medium">${foodName}</span>
+                                    <div class="text-sm text-gray-500">
+                                        ${quantity}g • ${calories} kcal
+                                        ${item.protein ? `• P: ${item.protein}g` : ''}
+                                        ${item.carbs ? `• C: ${item.carbs}g` : ''}
+                                        ${item.fats ? `• G: ${item.fats}g` : ''}
+                                    </div>
+                                </div>
+                                <button class="delete-food-btn text-red-500 hover:text-red-700" data-item-id="${item.item_id}">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                            `;
+                            list.appendChild(li);
+
+                            totalCalories += calories;
+                            totalProtein += item.protein || 0;
+                            totalCarbs += item.carbs || 0;
+                            totalFats += item.fats || 0;
+                        }
+                    });
+
+                    // Actualizar totales
+                    updateNutritionTotals(totalCalories, totalProtein, totalCarbs, totalFats);
+
+                    // Agregar event listeners para eliminar
+                    document.querySelectorAll('.delete-food-btn').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const itemId = e.currentTarget.dataset.itemId;
+                            await deleteCustomFoodItem(itemId);
+                        });
+                    });
+
+                } catch (err) {
+                    console.error('Error al cargar plan personalizado:', err);
+                    showMessage('Error al cargar tu plan personalizado.', true);
+                }
+            };
+
+            const updateNutritionTotals = (calories, protein, carbs, fats) => {
+                document.getElementById('total-calories').textContent = calories;
+                document.getElementById('total-protein').textContent = protein.toFixed(1);
+                document.getElementById('total-carbs').textContent = carbs.toFixed(1);
+                document.getElementById('total-fats').textContent = fats.toFixed(1);
+
+                // Obtener meta de calorías del perfil
+                const user = getUserFromToken();
+                const calorieGoal = user.daily_calorie_goal || 2000;
+                
+                document.getElementById('calories-consumed').textContent = calories;
+                document.getElementById('calories-goal').textContent = calorieGoal;
+                document.getElementById('calories-progress').textContent = `/ ${calorieGoal} kcal`;
+
+                const progress = Math.min((calories / calorieGoal) * 100, 100);
+                document.getElementById('calories-progress-bar').style.width = `${progress}%`;
+                
+                // Cambiar color según el progreso
+                if (progress > 100) {
+                    document.getElementById('calories-progress-bar').classList.remove('bg-green-600', 'bg-yellow-500');
+                    document.getElementById('calories-progress-bar').classList.add('bg-red-600');
+                } else if (progress > 80) {
+                    document.getElementById('calories-progress-bar').classList.remove('bg-green-600', 'bg-red-600');
+                    document.getElementById('calories-progress-bar').classList.add('bg-yellow-500');
+                } else {
+                    document.getElementById('calories-progress-bar').classList.remove('bg-yellow-500', 'bg-red-600');
+                    document.getElementById('calories-progress-bar').classList.add('bg-green-600');
+                }
+            };
+
+            const deleteCustomFoodItem = async (itemId) => {
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/plans/custom/${itemId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) throw new Error('Error al eliminar el alimento');
+                    
+                    showMessage('Alimento eliminado del plan');
+                    loadCustomPlan();
+                    loadDailyMeals(); // Actualizar también las comidas del día
+                } catch (err) {
+                    showMessage('Error al eliminar el alimento', true);
+                }
+            };
+
+            // --- CALENDARIO SEMANAL ---
+            const loadWeeklyCalendar = () => {
+                const calendar = document.getElementById('weekly-calendar');
+                const currentWeek = document.getElementById('current-week');
+                
+                // Calcular fecha de inicio de la semana
+                const today = new Date();
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay() + (currentWeekOffset * 7));
+                
+                // Actualizar texto de la semana actual
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                currentWeek.textContent = `Semana del ${startOfWeek.toLocaleDateString('es-ES')} al ${endOfWeek.toLocaleDateString('es-ES')}`;
+                
+                // Generar días de la semana
+                calendar.innerHTML = '';
+                const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(startOfWeek);
+                    day.setDate(startOfWeek.getDate() + i);
+                    
+                    const dayElement = document.createElement('div');
+                    dayElement.className = `calendar-day ${isToday(day) ? 'today' : ''}`;
+                    
+                    dayElement.innerHTML = `
+                        <div class="calendar-day-header">
+                            ${daysOfWeek[i]}<br>
+                            <span class="text-sm">${day.getDate()}</span>
+                        </div>
+                        <div class="calendar-meals">
+                            <!-- Las comidas del día se cargarán aquí -->
+                        </div>
+                    `;
+                    
+                    calendar.appendChild(dayElement);
+                }
+            };
+
+            const isToday = (date) => {
+                const today = new Date();
+                return date.getDate() === today.getDate() &&
+                       date.getMonth() === today.getMonth() &&
+                       date.getFullYear() === today.getFullYear();
+            };
+
+            // Event listeners para navegación del calendario
+            document.getElementById('prev-week').addEventListener('click', () => {
+                currentWeekOffset--;
+                loadWeeklyCalendar();
+            });
+
+            document.getElementById('next-week').addEventListener('click', () => {
+                currentWeekOffset++;
+                loadWeeklyCalendar();
+            });
+
+            // --- MODAL PARA AÑADIR AL PLAN ---
+            window.showAddToPlanModal = (foodId, foodName) => {
+                document.getElementById('modal-food-id').value = foodId;
+                document.getElementById('modal-food-name').textContent = `Añadir ${foodName} al Plan`;
+                document.getElementById('modal-quantity').value = 100;
+                modal.style.display = 'block';
+            };
+
+            modalCancel.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            addToPlanForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const foodId = document.getElementById('modal-food-id').value;
+                const quantity = document.getElementById('modal-quantity').value;
+                const mealType = document.getElementById('modal-meal-type').value;
+
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/plans/custom`, {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            meal_type: mealType, 
+                            food_id: foodId, 
+                            quantity: quantity 
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Error al añadir el alimento');
+
+                    showMessage('¡Alimento añadido al plan!');
+                    modal.style.display = 'none';
+                    
+                    // Recargar el plan si estamos en esa página
+                    if (pages.createPlan.classList.contains('hidden') === false) {
+                        loadCustomPlan();
+                        loadDailyMeals();
+                    }
+                } catch (err) {
+                    showMessage('Error al añadir el alimento: ' + err.message, true);
+                }
+            });
+
+            // Cerrar modal al hacer clic fuera
+            window.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // --- BOTÓN AÑADIR RÁPIDO EN DETALLE ---
+            document.getElementById('quick-add-to-plan')?.addEventListener('click', () => {
+                const foodId = currentFoodDetail?.food_id;
+                const foodName = currentFoodDetail?.name;
+                if (foodId && foodName) {
+                    showAddToPlanModal(foodId, foodName);
+                }
+            });
+
+            // --- FORMULARIO PARA AÑADIR ALIMENTO MANUAL ---
+            document.getElementById('add-custom-food-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const foodName = document.getElementById('custom-food-name').value;
+                const calories = document.getElementById('custom-food-calories').value;
+                const mealType = document.getElementById('custom-meal-type').value;
+                const quantity = document.getElementById('custom-food-quantity').value;
+
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/plans/custom`, {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            meal_type: mealType, 
+                            custom_food_name: foodName,
+                            quantity: quantity
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Error al añadir el alimento');
+
+                    showMessage('¡Alimento añadido al plan!');
+                    document.getElementById('add-custom-food-form').reset();
+                    loadCustomPlan();
+                    loadDailyMeals();
+                } catch (err) {
+                    showMessage('Error al añadir el alimento: ' + err.message, true);
+                }
+            });
+
+            // --- FUNCIONES DE METAS Y PESO CORREGIDAS ---
+            const loadWeightHistory = async () => {
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/weight/history`);
+                    const history = await response.json();
+                    
+                    if (history.length > 0) {
+                        renderWeightChart(history);
+                    }
+                } catch (err) {
+                    console.error('Error al cargar historial de peso:', err);
+                }
+            };
+
+            // NUEVA FUNCIÓN MEJORADA: Calcular calorías automáticamente
+            const calculateCalories = () => {
+                const weight = parseFloat(document.getElementById('goals-current-weight').value);
+                const height = parseFloat(document.getElementById('goals-height').value);
+                const activityLevel = document.getElementById('goals-activity-level').value;
+                const gender = document.getElementById('goals-gender').value;
+                const age = parseInt(document.getElementById('goals-age').value) || 30;
+
+                if (!weight || !height || !activityLevel || !gender) {
+                    showMessage('Por favor completa todos los campos requeridos (Peso, Altura, Nivel de Actividad y Género)', true);
+                    return;
+                }
+
+                // Fórmula de Harris-Benedict mejorada
+                let bmr;
+                
+                if (gender === 'masculino') {
+                    bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+                } else if (gender === 'femenino') {
+                    bmr = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+                } else {
+                    // Para "otro" usamos un promedio
+                    bmr = (88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age) + 
+                           447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age)) / 2;
+                }
+
+                // Factores de actividad actualizados
+                const activityFactors = {
+                    'sedentario': 1.2,
+                    'ligero': 1.375,
+                    'moderado': 1.55,
+                    'activo': 1.725,
+                    'muy_activo': 1.9
+                };
+
+                const tdee = Math.round(bmr * (activityFactors[activityLevel] || 1.2));
+                
+                // Ajustar según objetivo de peso
+                const goalWeight = parseFloat(document.getElementById('goals-goal-weight').value);
+                let dailyCalories = tdee;
+                
+                if (goalWeight && weight && goalWeight < weight) {
+                    // Para bajar de peso: déficit de 500 calorías
+                    dailyCalories = Math.max(tdee - 500, 1200);
+                } else if (goalWeight && weight && goalWeight > weight) {
+                    // Para subir de peso: superávit de 500 calorías
+                    dailyCalories = tdee + 500;
+                }
+
+                document.getElementById('goals-daily-calorie-goal').value = dailyCalories;
+                showMessage(`Meta diaria calculada: ${dailyCalories} kcal`);
+            };
+
+            // Event listener para el botón de cálculo de calorías
+            document.getElementById('goals-calculate-calories-btn')?.addEventListener('click', calculateCalories);
+
+            const renderWeightChart = (history) => {
+                const ctx = document.getElementById('goals-weight-chart').getContext('2d');
+                const labels = history.map(record => 
+                    new Date(record.recorded_at).toLocaleDateString('es-ES')
+                ).reverse();
+                const weights = history.map(record => record.weight).reverse();
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Peso (kg)',
+                            data: weights,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+            };
+
+            document.getElementById('goals-save-weight-btn')?.addEventListener('click', async () => {
+                const weight = document.getElementById('goals-current-weight-input').value;
+                if (!weight) {
+                    showMessage('Por favor ingresa tu peso', true);
+                    return;
+                }
+
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/weight/history`, {
+                        method: 'POST',
+                        body: JSON.stringify({ weight: parseFloat(weight) })
+                    });
+
+                    if (!response.ok) throw new Error('Error al guardar el peso');
+
+                    showMessage('¡Peso guardado correctamente!');
+                    document.getElementById('goals-current-weight-input').value = '';
+                    loadWeightHistory();
+                    
+                    // Actualizar también el peso actual en el perfil
+                    const goalsData = {
+                        current_weight: parseFloat(weight)
+                    };
+                    await fetchProtected(`${API_BASE_URL}/user/profile`, {
+                        method: 'PUT',
+                        body: JSON.stringify(goalsData)
+                    });
+                    
+                } catch (err) {
+                    showMessage('Error al guardar el peso: ' + err.message, true);
+                }
+            });
+
+            // --- FUNCIONES DE COMUNIDAD ---
+            async function renderCommunityPosts(category = '') {
+                document.querySelectorAll('.btn-filter-category').forEach(btn => {
+                    const btnCategory = btn.textContent.trim();
+                    const isActive = (category === '' && btnCategory === 'Todos') || (category !== '' && btnCategory === category);
+                    btn.classList.toggle('bg-green-600', isActive);
+                    btn.classList.toggle('text-white', isActive);
+                    btn.classList.toggle('bg-gray-200', !isActive);
+                    btn.classList.toggle('text-gray-700', !isActive);
+                });
+
+                communityContent.innerHTML = '<p class="text-gray-500">Cargando posts...</p>';
+                try {
+                    const url = category ? `${API_BASE_URL}/community/posts?category=${category}` : `${API_BASE_URL}/community/posts`;
+                    const response = await fetchProtected(url);
+                    
+                    if (!response.ok) throw new Error('No se pudieron cargar los posts');
+
+                    const posts = await response.json();
+                    const currentUser = getUserFromToken();
+                    
+                    communityContent.innerHTML = '';
+
+                    if (posts.length === 0) {
+                        communityContent.innerHTML = '<p class="text-center text-gray-500">No hay posts en esta categoría.</p>';
+                        return;
+                    }
+
+                    posts.forEach(post => {
+                        const postElement = document.createElement('div');
+                        postElement.className = 'card p-6';
+
+                        const postDate = new Date(post.created_at).toLocaleDateString('es-ES', {
+                            year: 'numeric', month: 'long', day: 'numeric'
+                        });
+
+                        let commentsHtml = '<div class="mt-4 pt-4 border-t border-gray-200 space-y-3 comments-list max-h-48 overflow-y-auto pr-2">';
+                        if (post.comments && post.comments.length > 0) {
+                            post.comments.forEach(comment => {
+                                commentsHtml += `
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <p class="text-sm text-gray-700">${comment.text}</p>
+                                        <p class="text-xs text-gray-500 mt-1">- <strong>${comment.nickname}</strong></p>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            commentsHtml += '<p class="text-sm text-gray-500">Aún no hay comentarios.</p>';
+                        }
+                        commentsHtml += '</div>';
+
+                        const commentFormHtml = `
+                            <form class="comment-form mt-4 flex gap-2" data-post-id="${post.post_id}">
+                                <input type="text" placeholder="Escribe un comentario..." class="comment-input w-full px-3 py-2 border border-gray-300 rounded-full-lg focus:outline-none focus:ring-1 focus:ring-green-500 text-sm" required>
+                                <button type="submit" class="bg-green-500 text-white px-4 rounded-lg text-sm">Enviar</button>
+                            </form>
+                        `;
+
+                        const deleteButtonHtml = (currentUser && currentUser.user_id === post.user_id) ? `
+                            <button class="delete-post-btn absolute top-4 right-4 text-gray-400 hover:text-red-500" data-post-id="${post.post_id}" title="Eliminar post">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        ` : '';
+
+                        postElement.innerHTML = `
+                            <div class="relative"> <div class="flex justify-between items-center mb-2">
+                                    <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">${post.category}</span>
+                                    <span class="text-sm text-gray-500">${postDate}</span>
+                                </div>
+                                
+                                ${deleteButtonHtml} <h3 class="text-xl font-bold text-green-800 mb-1">${post.title}</h3>
+                                <p class="text-sm font-medium text-gray-600 mb-3">por <strong>${post.nickname}</strong></p>
+                                <p class="text-gray-700">${post.content}</p>
+                                
+                                ${commentsHtml}
+                                ${commentFormHtml}
+                            </div>
+                        `;
+                        
+                        communityContent.appendChild(postElement);
+                    });
+
+                    addCommunityEventListeners();
+                } catch (err) {
+                    communityContent.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+                }
+            }
+
+            newPostForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = document.getElementById('new-post-title').value;
+                const content = document.getElementById('new-post-content').value;
+                const category = document.getElementById('new-post-category').value;
+                
+                try {
+                    const response = await fetchProtected(`${API_BASE_URL}/community/posts`, {
+                        method: 'POST',
+                        body: JSON.stringify({ title, content, category })
+                    });
+                    
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'No se pudo crear el post');
+                    }
+                    
+                    showMessage('Post creado con éxito');
+                    newPostForm.reset();
+                    renderCommunityPosts();
+
+                } catch (err) {
+                    showMessage(err.message, true);
+                }
+            });
+            
+            function addCommunityEventListeners() {
+                document.querySelectorAll('.comment-form').forEach(form => {
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const postId = form.dataset.postId;
+                        const input = form.querySelector('.comment-input');
+                        const text = input.value.trim();
+
+                        if (text) {
+                            try {
+                                const response = await fetchProtected(`${API_BASE_URL}/community/posts/${postId}/comments`, {
+                                    method: 'POST',
+                                    body: JSON.stringify({ text })
+                                });
+                                if (!response.ok) {
+                                    const data = await response.json();
+                                    throw new Error(data.error || 'No se pudo comentar');
+                                }
+                                renderCommunityPosts();
+                                showMessage('Comentario añadido');
+                            } catch (err) {
+                                showMessage(err.message, true);
+                            }
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.delete-post-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const postId = button.dataset.postId;
+                        
+                        if (confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
+                            try {
+                                const response = await fetchProtected(`${API_BASE_URL}/community/posts/${postId}`, {
+                                    method: 'DELETE'
+                                });
+
+                                if (!response.ok) {
+                                    const data = await response.json();
+                                    throw new Error(data.error || 'No se pudo eliminar el post');
+                                }
+                                
+                                showMessage('Post eliminado correctamente.');
+                                renderCommunityPosts();
+
+                            } catch (err) {
+                                showMessage(err.message, true);
+                            }
+                        }
+                    });
+                });
+            };
+
+            // --- INICIALIZACIÓN ---
+            if (getToken()) {
+                showPage('mainApp');
+            } else {
+                showPage('welcome');
+            }
+
+            // --- HACER FUNCIONES GLOBALES ---
+            window.goBackFromDetail = goBackFromDetail;
+            window.showFoodDetail = showFoodDetail;
+            window.renderCommunityPosts = renderCommunityPosts;
+            window.showAddToPlanModal = showAddToPlanModal;
+            window.showPage = showPage;
+            
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+version: '3.8'
+
+# Definimos todos los servicios (cajas)
+services:
+
+  # 1. La "Cocina" (Tu Backend)
+  backend:
+    build: ./backend  # Dónde está su Dockerfile
+    restart: always
+    environment:
+      # Las variables que tu index.js y db.js necesitan
+      DB_USER: usuario_db_prod
+      DB_PASSWORD: una_clave_muy_segura_para_prod
+      DB_DATABASE: nutriapp
+      DB_PORT: 5432
+      DB_HOST: database # ¡Se conecta a la caja "database"!
+      JWT_SECRET: "OTRA_CLAVE_SECRETA_MUY_FUERTE_PARA_JWT"
+      PORT: 5000 # El puerto INTERNO de tu app
+    depends_on:
+      - database      # No enciende hasta que la DB esté lista
+    networks:
+      - app-network   # Se conecta a la red interna
+
+  # 2. El "Salón" (Tu Frontend)
+  frontend:
+    build: ./frontend # Dónde está su Dockerfile
+    restart: always
+    networks:
+      - app-network   # Se conecta a la red interna
+
+  # 3. La "Despensa" (Base de Datos)
+  database:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      # ¡Deben coincidir con las variables del backend!
+      POSTGRES_USER: usuario_db_prod
+      POSTGRES_PASSWORD: una_clave_muy_segura_para_prod
+      POSTGRES_DB: nutriapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Guarda los datos
+    networks:
+      - app-network
+
+  # 4. El "Recepcionista" (Nginx Proxy)
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    restart: always
+    ports:
+      # ¡Esta es la ÚNICA puerta abierta al mundo exterior!
+      # Conecta el puerto 80 del servidor al puerto 80 de esta caja.
+      - "80:80"
+    volumes:
+      # Le da el "libro de reglas" (Paso 3) para que sepa qué hacer
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend      # No enciende hasta que el salón esté listo
+      - backend       # No enciende hasta que la cocina esté lista
+    networks:
+      - app-network
+
+# La red interna para que todas las cajas hablen entre sí
+networks:
+  app-network:
+    driver: bridge
+
+# El "almacén" físico para los datos de la despensa
+volumes:
+  postgres_data:

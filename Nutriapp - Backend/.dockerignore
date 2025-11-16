@@ -1,0 +1,5 @@
+# Ignorar la carpeta de ingredientes de tu PC
+node_modules
+
+# ¡Ignorar el archivo de secretos locales!
+.env
