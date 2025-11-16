@@ -48,7 +48,7 @@ const validatePassword = (password) => {
     }
     // Regla 5: Un caracter especial
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.\/]/.test(password)) {
-        errors.push('Debe tener al menos un caracter especial (!@#$%&)');
+        errors.push('Debe tener al menos un caracter especial (ej. !@#$,./)');
     }
     
     return errors;
